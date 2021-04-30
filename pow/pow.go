@@ -1,4 +1,4 @@
-package main
+package pow
 
 import (
 	"bytes"
@@ -8,40 +8,33 @@ import (
 	"log"
 	"math"
 	"math/big"
-	"strconv"
 	"time"
+
+	"github.com/KinyaElGrande/Go-Blockchain-101/blockchain"
 )
 
-type Block struct {
-	Timestamp     int64
-	Data          []byte
-	PrevBlockHash []byte
-	Hash          []byte
-	Nonce         int
-}
-
 type Blockchain struct {
-	blocks []*Block
+	Blocks []*blockchain.Block
 }
 
 type ProofOfWork struct {
-	block  *Block
+	block  *blockchain.Block
 	target *big.Int
 }
 
 const targetBits = 24
 
 //NewGenesisBlock creates the first Block in the chain
-func NewGenesisBlock() *Block {
+func NewGenesisBlock() *blockchain.Block {
 	return NewBlock("ET Genesis Block", []byte{})
 }
 
 //NewBlockChain creates a new blockchain
 func NewBlockchain() *Blockchain {
-	return &Blockchain{[]*Block{NewGenesisBlock()}}
+	return &Blockchain{[]*blockchain.Block{NewGenesisBlock()}}
 }
 
-func NewProofOfWork(b *Block) *ProofOfWork {
+func NewProofOfWork(b *blockchain.Block) *ProofOfWork {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-targetBits))
 
@@ -73,6 +66,7 @@ func IntToHex(num int64) []byte {
 	return buff.Bytes()
 }
 
+// Run perfoms the POW
 func (pow *ProofOfWork) Run() (int, []byte) {
 	var hashInt big.Int
 	var hash [32]byte
@@ -110,8 +104,8 @@ func (pow *ProofOfWork) Validate() bool {
 }
 
 //NewBlock creates a new Block
-func NewBlock(data string, prevBlockHash []byte) *Block {
-	block := &Block{time.Now().Unix(), []byte(data), prevBlockHash, []byte{}, 0}
+func NewBlock(data string, prevBlockHash []byte) *blockchain.Block {
+	block := &blockchain.Block{time.Now().Unix(), []byte(data), prevBlockHash, []byte{}, 0}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 
@@ -123,24 +117,7 @@ func NewBlock(data string, prevBlockHash []byte) *Block {
 
 // AddBlock adds a new Block in the Blockchain
 func (bc *Blockchain) AddBlock(data string) {
-	prevBlock := bc.blocks[len(bc.blocks)-1]
+	prevBlock := bc.Blocks[len(bc.Blocks)-1]
 	newBlock := NewBlock(data, prevBlock.Hash)
-	bc.blocks = append(bc.blocks, newBlock)
-}
-
-func main() {
-	bc := NewBlockchain()
-
-	bc.AddBlock("Block 001")
-	bc.AddBlock("heheh 002")
-
-	for _, block := range bc.blocks {
-		fmt.Printf("Prev Hash : %x\n", block.PrevBlockHash)
-		fmt.Printf("Data: %s\n", block.Data)
-		fmt.Printf("Hash: %x\n", block.Hash)
-		pow := NewProofOfWork(block)
-		fmt.Printf("POW: %s\n", strconv.FormatBool(pow.Validate()))
-		fmt.Println()
-	}
-
+	bc.Blocks = append(bc.Blocks, newBlock)
 }
