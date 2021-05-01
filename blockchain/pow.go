@@ -1,4 +1,4 @@
-package pow
+package blockchain
 
 import (
 	"bytes"
@@ -8,33 +8,16 @@ import (
 	"log"
 	"math"
 	"math/big"
-	"time"
-
-	"github.com/KinyaElGrande/Go-Blockchain-101/blockchain"
 )
 
-type Blockchain struct {
-	Blocks []*blockchain.Block
-}
-
 type ProofOfWork struct {
-	block  *blockchain.Block
+	block  *Block
 	target *big.Int
 }
 
 const targetBits = 24
 
-//NewGenesisBlock creates the first Block in the chain
-func NewGenesisBlock() *blockchain.Block {
-	return NewBlock("ET Genesis Block", []byte{})
-}
-
-//NewBlockChain creates a new blockchain
-func NewBlockchain() *Blockchain {
-	return &Blockchain{[]*blockchain.Block{NewGenesisBlock()}}
-}
-
-func NewProofOfWork(b *blockchain.Block) *ProofOfWork {
+func NewProofOfWork(b *Block) *ProofOfWork {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-targetBits))
 
@@ -66,7 +49,6 @@ func IntToHex(num int64) []byte {
 	return buff.Bytes()
 }
 
-// Run perfoms the POW
 func (pow *ProofOfWork) Run() (int, []byte) {
 	var hashInt big.Int
 	var hash [32]byte
@@ -101,23 +83,4 @@ func (pow *ProofOfWork) Validate() bool {
 	isValid := hashInt.Cmp(pow.target) == -1
 
 	return isValid
-}
-
-//NewBlock creates a new Block
-func NewBlock(data string, prevBlockHash []byte) *blockchain.Block {
-	block := &blockchain.Block{time.Now().Unix(), []byte(data), prevBlockHash, []byte{}, 0}
-	pow := NewProofOfWork(block)
-	nonce, hash := pow.Run()
-
-	block.Hash = hash[:]
-	block.Nonce = nonce
-
-	return block
-}
-
-// AddBlock adds a new Block in the Blockchain
-func (bc *Blockchain) AddBlock(data string) {
-	prevBlock := bc.Blocks[len(bc.Blocks)-1]
-	newBlock := NewBlock(data, prevBlock.Hash)
-	bc.Blocks = append(bc.Blocks, newBlock)
 }
