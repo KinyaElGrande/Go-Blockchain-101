@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/dgraph-io/badger/v3"
 )
@@ -10,6 +11,8 @@ const (
 	genCoinbaseData = "ElGrande blockchain 101"
 
 	dbPath = "./tmp/blocks"
+	// This can be used to verify that the blockchain exists
+	dbFile = "./tmp/blocks/MANIFEST"
 )
 
 type Blockchain struct {
@@ -22,8 +25,20 @@ type BlockChainIterator struct {
 	Db          *badger.DB
 }
 
+func dbExists() bool {
+	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
 // CreateBlockchain creates a new blockchain DB
 func CreateBlockchain(address string) *Blockchain {
+	if dbExists() {
+		fmt.Println("Blockchain already exists !")
+		os.Exit(1)
+	}
 
 	var latestHash []byte
 
@@ -32,16 +47,16 @@ func CreateBlockchain(address string) *Blockchain {
 	handleErr(err)
 
 	err = db.Update(func(tx *badger.Txn) error {
-		cbTxn := NewCoinBaseTX(address, genCoinbaseData)
-		genesis := GenesisBlock(cbTxn)
-		fmt.Println("Genesis file created")
-		err = tx.Set(genesis.Hash, genesis.Serialize())
-		handleErr(err)
-		err = tx.Set([]byte("lh"), genesis.Hash)
+			cbTxn := NewCoinBaseTX(address, genCoinbaseData)
+			genesis := GenesisBlock(cbTxn)
+			fmt.Println("Genesis file created")
+			err = tx.Set(genesis.Hash, genesis.Serialize())
+			handleErr(err)
+			err = tx.Set([]byte("lh"), genesis.Hash)
 
-		latestHash = genesis.Hash
+			latestHash = genesis.Hash
 
-		return err
+			return err
 	})
 	handleErr(err)
 
@@ -50,6 +65,10 @@ func CreateBlockchain(address string) *Blockchain {
 }
 
 func AddBlockchain(address string) *Blockchain {
+	if !dbExists() {
+		fmt.Println("No existing blockchain found. Create one first.")
+		os.Exit(1)
+	}
 	var latestHash []byte
 
 	opts := badger.DefaultOptions(dbPath)
@@ -59,7 +78,7 @@ func AddBlockchain(address string) *Blockchain {
 	err = db.Update(func(tx *badger.Txn) error {
 		item, err := tx.Get([]byte("lh"))
 		handleErr(err)
-		err = item.Value(func(val []byte) error {
+		err = item.Value(func (val []byte) error {
 			latestHash = val
 			return nil
 		})

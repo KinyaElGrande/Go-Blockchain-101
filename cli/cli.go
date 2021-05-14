@@ -15,7 +15,7 @@ type CLI struct{}
 
 func (cli *CLI) printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("getbalance --address ADDRESS - get balance for address")
+	fmt.Println("getbalance -address ADDRESS - get balance for address")
 	fmt.Println("createBlockchain -address ADDRESS creates a blockchain and rewards the miner")
 	fmt.Println("listblocks -prints all the blocks in the blockchain")
 	fmt.Println("send -from FROM -to TO -amount AMOUNT of tokens from one address to another")
