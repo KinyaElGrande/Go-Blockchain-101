@@ -2,9 +2,14 @@ package blockchain
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/dgraph-io/badger/v3"
+)
+
+const (
+	genCoinbaseData = "ElGrande blockchain 101"
+
+	dbPath = "./tmp/blocks"
 )
 
 type Blockchain struct {
@@ -17,45 +22,26 @@ type BlockChainIterator struct {
 	Db          *badger.DB
 }
 
-// NewBlockchain opens a connection to the database
-func NewBlockchain() *Blockchain {
+// CreateBlockchain creates a new blockchain DB
+func CreateBlockchain(address string) *Blockchain {
+
 	var latestHash []byte
 
-	cwd, err := os.Getwd()
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	opts := badger.DefaultOptions(cwd)
-
+	opts := badger.DefaultOptions(dbPath)
 	db, err := badger.Open(opts)
 	handleErr(err)
 
-	// Check if there is already a blockchain
 	err = db.Update(func(tx *badger.Txn) error {
-		// lh key is a key to LatestBlockHash
-		if _, err := tx.Get([]byte("lh")); err == badger.ErrKeyNotFound {
-			fmt.Println("No existing blockchain Found")
-			genesis := GenesisBlock()
-			err = tx.Set(genesis.Hash, genesis.Serialize())
-			handleErr(err)
-			err = tx.Set([]byte("lh"), genesis.Hash)
+		cbTxn := NewCoinBaseTX(address, genCoinbaseData)
+		genesis := GenesisBlock(cbTxn)
+		fmt.Println("Genesis file created")
+		err = tx.Set(genesis.Hash, genesis.Serialize())
+		handleErr(err)
+		err = tx.Set([]byte("lh"), genesis.Hash)
 
-			latestHash = genesis.Hash
+		latestHash = genesis.Hash
 
-			return err
-		} else {
-			item, err := tx.Get([]byte("lh"))
-			handleErr(err)
-			err = item.Value(func(val []byte) error {
-				latestHash = val
-				return nil
-			})
-			handleErr(err)
-			return err
-		}
-
+		return err
 	})
 	handleErr(err)
 
@@ -63,8 +49,31 @@ func NewBlockchain() *Blockchain {
 	return &blockchain
 }
 
+func AddBlockchain(address string) *Blockchain {
+	var latestHash []byte
+
+	opts := badger.DefaultOptions(dbPath)
+	db, err := badger.Open(opts)
+	handleErr(err)
+
+	err = db.Update(func(tx *badger.Txn) error {
+		item, err := tx.Get([]byte("lh"))
+		handleErr(err)
+		err = item.Value(func(val []byte) error {
+			latestHash = val
+			return nil
+		})
+		handleErr(err)
+		return err
+	})
+	handleErr(err)
+
+	bc := Blockchain{latestHash, db}
+	return &bc
+}
+
 // AddBlock adds a new block on the Blockchain
-func (bc *Blockchain) AddBlock(data string) {
+func (bc *Blockchain) AddBlock(transactions []*Transaction) {
 	var latestHash []byte
 
 	err := bc.Database.View(func(txn *badger.Txn) error {
@@ -79,7 +88,7 @@ func (bc *Blockchain) AddBlock(data string) {
 	})
 	handleErr(err)
 
-	newBlock := NewBlock(data, latestHash)
+	newBlock := NewBlock(transactions, latestHash)
 
 	err = bc.Database.Update(func(tx *badger.Txn) error {
 		err := tx.Set(newBlock.Hash, newBlock.Serialize())
@@ -101,14 +110,14 @@ func (bc *Blockchain) Iterator() *BlockChainIterator {
 // Next returns the next block from the BlockChain
 func (bi *BlockChainIterator) Next() *Block {
 	var block *Block
-	
+
 	err := bi.Db.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(bi.CurrentHash)
 		handleErr(err)
 
 		err = item.Value(func(val []byte) error {
 			block = Deserialize(val)
-		return nil
+			return nil
 		})
 		handleErr(err)
 		return err

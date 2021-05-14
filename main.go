@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/KinyaElGrande/Go-Blockchain-101/blockchain"
+	"os"
+
 	"github.com/KinyaElGrande/Go-Blockchain-101/cli"
 )
 
 func main() {
-	bc := blockchain.NewBlockchain()
-	defer bc.Database.Close()
-	cli := cli.CLI{bc}
+	defer os.Exit(0)
+	cli := cli.CLI{}
 	cli.Run()
 }
